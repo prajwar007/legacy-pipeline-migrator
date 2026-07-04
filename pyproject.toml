@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "legacy-pipeline-migrator"
 version = "0.1.0"
 description = "Legacy Perl to Python transaction pipeline migration"
+authors = [{ name = "Pradeep", email = "prajwar007@gmail.com" }]
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "oracledb>=2.0.0",
@@ -22,6 +24,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: requires live Oracle + SFTP containers (see docker-compose.yml). Run with `pytest -m integration`.",
+]
 
 [tool.ruff]
 line-length = 100

@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: legacy-pipeline-loader
+  namespace: legacy-pipeline
+spec:
+  # No automatic retries: a rejected-record count is a deterministic result
+  # of the file's contents, not a transient fault — same reasoning as the
+  # validate_file task's retries=0 in dags/transaction_pipeline_dag.py.
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: loader
+          # Docker Hub image — public by default, so no imagePullSecret
+          # needed (unlike GHCR, which defaults new packages to Private).
+          image: docker.io/pradeepthinknyx/legacy-pipeline-migrator:latest
+          args: ["/data/valid_transactions.txt"]
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+            - name: sample-data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: pipeline-config
+        - name: sample-data
+          configMap:
+            name: sample-transactions

@@ -7,6 +7,20 @@
 3. Check for an alert in the configured Slack channel (see "Alerting" below) — it carries the same task/run_id/error as the log line.
 4. Confirm whether the failure happened before or after Oracle load started.
 
+## Reproducing Locally
+
+To reproduce an Oracle- or SFTP-related failure against real infrastructure
+rather than guessing from logs alone:
+
+```bash
+cp .env.example .env
+docker compose up -d oracle sftp
+source .env && export ORACLE_USER ORACLE_PASSWORD ORACLE_DSN
+pytest -m integration -v
+```
+
+See "Local Integration Testing" in `README.md` for details.
+
 ## Alerting
 
 Task failures trigger `_log_failure` (see `dags/transaction_pipeline_dag.py`), which does two things:

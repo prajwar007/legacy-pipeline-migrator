@@ -1,9 +1,0 @@
-services:
-  sftp:
-    image: atmoz/sftp:latest
-    ports:
-      - "2222:22"
-    command: migrator:pass:::incoming
-    volumes:
-      - ./incoming:/home/migrator/incoming
-

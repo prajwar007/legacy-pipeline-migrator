@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pipeline-config
+  namespace: legacy-pipeline
+data:
+  thresholds.yaml: |
+    large_debit_threshold: 10000.00
+
+  field_mapping.yaml: |
+    source_fields:
+      - transaction_id
+      - account_id
+      - txn_type
+      - amount
+      - txn_date
+    target_table: transactions
+    validation:
+      transaction_id_regex: "^TXN-[0-9]{6}$"
+      account_id_regex: "^ACCT-[0-9]{6}$"
+      amount_regex: "^[0-9]+(\\.[0-9]{1,2})?$"
+      valid_txn_types:
+        - CREDIT
+        - DEBIT
+
+  logging.yaml: |
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+      standard:
+        format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: standard
+        stream: ext://sys.stdout
+      file:
+        class: logging.handlers.RotatingFileHandler
+        level: INFO
+        formatter: standard
+        filename: logs/pipeline.log
+        maxBytes: 1048576
+        backupCount: 5
+    loggers:
+      pipeline:
+        level: INFO
+        handlers:
+          - console
+          - file
+        propagate: false
+    root:
+      level: WARNING
+      handlers:
+        - console

@@ -1,0 +1,68 @@
+services:
+  oracle:
+    # gvenzl/oracle-free is the community-standard choice for local dev/CI:
+    # starts in ~30-60s (vs. several minutes for Oracle's own container-registry
+    # image) and supports creating an app user + password via env vars directly,
+    # without needing a separate DBCA/GRID setup step.
+    image: gvenzl/oracle-free:23-slim
+    container_name: legacy-pipeline-oracle
+    ports:
+      - "1521:1521"
+    environment:
+       ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:-dev_sys_password}
+       APP_USER: ${ORACLE_USER:-migrator}
+       APP_USER_PASSWORD: ${ORACLE_PASSWORD:-dev_password}
+       # ORACLE_DATABASE: ${ORACLE_PDB:-FREEPDB1}
+       # Deliberately NOT setting ORACLE_DATABASE here. gvenzl/oracle-free
+       # ships with a default PDB already named FREEPDB1 baked into the
+       # image. Setting ORACLE_DATABASE=FREEPDB1 makes the entrypoint try
+       # to CREATE a PDB with that same name, colliding with the one that
+       # already exists -> ORA-65012. Leaving it unset uses the pre-baked
+       # default PDB (still named FREEPDB1) without trying to recreate it;
+       # APP_USER/APP_USER_PASSWORD are created inside it automatically.
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  sftp:
+    image: atmoz/sftp:latest
+    container_name: legacy-pipeline-sftp
+    ports:
+      - "2222:22"
+    command: ${SFTP_USERNAME:-migrator}:${SFTP_PASSWORD:-pass}:::incoming
+    volumes:
+      - ./scripts/sftp_server_docker/incoming:/home/${SFTP_USERNAME:-migrator}/incoming
+
+  app:
+    build: .
+    image: legacy-pipeline-migrator:local
+    container_name: legacy-pipeline-app
+    depends_on:
+      oracle:
+        condition: service_healthy
+      sftp:
+        condition: service_started
+    environment:
+      ORACLE_USER: ${ORACLE_USER:-migrator}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-dev_password}
+      ORACLE_DSN: oracle:1521/${ORACLE_PDB:-FREEPDB1}
+      SFTP_HOST: sftp
+      SFTP_PORT: "22"
+      SFTP_USERNAME: ${SFTP_USERNAME:-migrator}
+      SFTP_PASSWORD: ${SFTP_PASSWORD:-pass}
+      SFTP_REMOTE_DIR: /incoming
+    volumes:
+      # Test fixtures aren't baked into the image (a real deployment image
+      # shouldn't ship test data) - mounted here instead, since this
+      # compose file is specifically for local testing.
+      - ./tests:/app/tests:ro
+    # No command by default — run one-off commands against this service, e.g.:
+    #   docker compose run --rm app tests/fixtures/valid_transactions.txt
+
+volumes:
+  oracle_data:
